@@ -1,0 +1,69 @@
+---
+title: "Water_Project"
+author: "Justin Howard"
+date: "June 6, 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd('C:/Users/howar/Documents/Stats.2/Project 1/')
+```
+ncol <- max(count.fields('WellMain.txt', sep = "|"))
+WellMain<- read.table('WellMain.txt', header=F, sep='|', fill=T, col.names=paste0('V', seq_len(ncol)))
+```{r loading data}
+wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
+levelsmajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMajor.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
+levelsminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMinor.txt", sep="|", header=F, stringsAsFactors = T, fill = T, quote="")
+levelscombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsCombination.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
+```
+```{r loading more data}
+levelsother<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsOtherUnassigned.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
+qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+qualitycombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityCombination.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
+```
+```{r more data}
+qualityotherunass<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityOtherUnassigned.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+
+welllithology<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellLithology.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote= "")
+welltest<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellTest.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+
+```
+
+
+```{r pressure, echo=FALSE}
+library(dplyr)
+library(stringr)
+WPqualityminor <-qualityminor %>%
+  select(ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate, SampleTopInterval, SampleBottomInterval) %>%
+  filter(ParameterCode == 70301, ParameterValue > 1000)
+```
+
+#### We need to make a table of more useful data 
+```{r making useful tables, echo=F}
+
+QualityMerge<- function(a,b,c,d) {
+  a1<- a %>%
+    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    filter(ParameterCode == 70301, ParameterValue > 1000)
+  b1<- b %>% 
+    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    filter(ParameterCode == 70301, ParameterValue > 1000)
+  c1<- c %>% 
+    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    filter(ParameterCode == 70301, ParameterValue > 1000)
+  d1<- d %>% 
+    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    filter(ParameterCode == 70301, ParameterValue > 1000)
+  all<- list(a1, b1, c1, d1)
+  QualityAll<- do.call("rbind", all)
+  return(head(QualityAll))
+}
+QualityMerge(qualitycombination, qualitymajor, qualityminor, qualityotherunass)
+```
+
+
