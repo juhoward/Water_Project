@@ -116,46 +116,52 @@ head(Quality_plus)
 Quality_plus$SampleDate<- ymd(Quality_plus$SampleDate)
 Quality_plus$DrillingStartDate<- ymd(Quality_plus$DrillingStartDate)
 Quality_plus$DrillingEndDate<- ymd(Quality_plus$DrillingEndDate)
+Quality_plus$SampleTime<- as.numeric(Quality_plus$SampleTime)
 Quality_plus$SampleTime<- sub("(\\d+)(\\d{2})", "\\1:\\2", Quality_plus$SampleTime) 
 
+Quality_plus$SampleTime<- hm(Quality_plus$SampleTime, format= "%H:%M")
 ```
 ```{r summary of big dataset}
 summary(Quality_plus)
 ```
+#### To make a linear model based on the categoricals, we will identify the variables associated with individual wells and include them in a one-time TDS parametervalue to get an idea of the variables most associated with the presence of brackish water. Since the TDS parameter value is highly dependent on other variables, we will proceed with caution.
 ```{r finding categoricals unique to each well}
+#filtering total data by individual wells
 wellstats<- Quality_plus %>%
   group_by(StateWellNumber) %>%
   distinct(StateWellNumber, .keep_all = T)
 summary(wellstats)
+dim(wellstats)
+length(wellstats$StateWellNumber)
 ```
-
+#### We are left with 32 variables explaining 14,909 individual wells. We will proceed to plot diagnostics fo r the response, ParameterValue (TDS) and two other continuous variables: WellDepth and LandSurfaceElevation.
 ```{r plotting the response, include=F}
-panel.hist = function(x, ...) {
-  + usr = par("usr") 
-  + on.exit(par(usr)) 
-  + par(usr = c(usr[1:2], 0, 1.5)) 
-  + h = hist(x, plot = FALSE) 
-  + breaks = h$breaks 
-  + nB = length(breaks) 
-  + y = h$counts 
-  + y = y/max(y) 
-  + rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...) 
-  }
-panel.lm = function(x, y, col = par("col"), bg = NA, pch = par("pch"), cex = 1, col.lm = "red", ...) { 
-  + points(x, y, pch = pch, col = col, bg = bg, cex = cex) 
-  + ok = is.finite(x) & is.finite(y) 
-  + if (any(ok)) 
-    + abline(lm(y[ok] ~ x[ok])) 
-  }
-
-pairs(~ParameterValue + WellDepth + LandSurfaceElevation, lower.panel = panel.smooth,
-      diag.panel = panel.hist, upper.panel = panel.lm, data = wellstats)
-pairs(~ParameterValue + WellDepth + LandSurfaceElevation,  data = wellstats)
-Aquifers<- levels(Quality_plus$SampledAquifer)
-
-graph<- ggplot(Quality_plus, aes(x=SampleDate, y=ParameterValue, group = SampledAquifer)) + 
-                 geom_line(aes(color=SampledAquifer)) +
-                 geom_point(aes(color=SampledAquifer))
-graph
+# BottomDepth would not plot, so it was removed.
+pairs(~ParameterValue + WellDepth + LandSurfaceElevation + TopDepth, data = wellstats)
 
 ```
+#### WellDepth and LandSurfaceElevation appear correlated. WellDepth and TopDepth also appear correlated. Points for all appear clustered, so constant standard deviation is problematic.
+```{r scatterplots for location based categoricals}
+# LithologyType could not be plotted, so it was removed.
+pairs(~ParameterValue + Aquifer + County + SampledAquifer + RiverBasin + GMA + RWPA + 
+         Classification,  data = wellstats)
+```
+#### Aquifer and Classification appear to be strongly correlated, as do SampledAquifer and Classification.
+
+```{r scatterplots for non-locatoin based categoricals}
+# CurrentWaterQualityWell would not plot, so it was removed
+pairs(~ParameterValue + CollectionEntity + WellType + WellUse
+      + Pump + PowerType,  data = wellstats)
+```
+#### Most categoricals do not appear to correlate with each other, except for WellType and CollectionEntity. There is evidence of a non-linear relationship between the repsonse and CollectionEntity, Pump and PowerType.
+Before we proceed, we will look at scatterplots of a log transformed repsonse.
+```{r plots of log transformed ParameterValue}
+pairs(~log(ParameterValue) + WellDepth + LandSurfaceElevation + TopDepth, main = "Log Transformed Response v. Continuous Variables", data = wellstats)
+pairs(~log(ParameterValue) + Aquifer + County + SampledAquifer + RiverBasin + GMA + RWPA + 
+        Classification,  main = "Log Tranformed Response v. Location-Based Variables", data = wellstats)
+pairs(~log(ParameterValue) + CollectionEntity + WellType + WellUse
+      + Pump + PowerType,  main = "Log Transformed Response v. Other Variables", data = wellstats)
+```
+#### A quadratic relationiship appears evident between the logged ParameterValue and TopDepth and is somewhat reflected inthe WellDepth plot as well.
+```{r linear model}
+model1<- lm()
