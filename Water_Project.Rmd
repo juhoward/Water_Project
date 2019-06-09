@@ -13,11 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd('C:/Users/howar/Documents/r__working_directory/Water_Project')
 ```
 
-```{r loading data, inlcude=F}
+```{r well descriptions, inlcude=F}
 wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=T,
                       stringsAsFactors = T, strip.white = T, quote="", comment.char = "", fill = T)
 ```
-```{r loading more data, include=F}
+```{r loading water quality data, include=F}
 qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|",
                           header=T,stringsAsFactors = T, strip.white = T, quote="", comment.char = "", 
                           fill = T)
@@ -27,11 +27,11 @@ qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQuali
 qualitycombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityCombination.txt",
                                 sep="|", header=T, stringsAsFactors = T, strip.white = T, quote="",
                                 comment.char = "", fill = T)
-```
-```{r more data, include=F}
 qualityotherunass<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityOtherUnassigned.txt",
                                sep="|", header=T, stringsAsFactors = T, strip.white = T, quote="",
                                comment.char = "", fill = T)
+```
+```{r more well descriptions, include=F}
 welllithology<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellLithology.txt", sep="|", header=T,
                            stringsAsFactors = T, fill = T, quote= "")
 welltest<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellTest.txt", sep="|", header=T,
@@ -65,7 +65,7 @@ library(stringr)
 ```
 
 #### We need to make a table of more useful data. We will ignore mostly empty columns: SampleBottomInterval, SampleTopInterval,  
-```{r combining tables}
+```{r combining water quality tables}
 
 QualityMerge<- function(a,b,c,d) {
   a1<- a %>%
@@ -114,19 +114,43 @@ head(Quality_plus)
 ```
 ```{r cleaning}
 Quality_plus$SampleDate<- ymd(Quality_plus$SampleDate)
-Quality_plus$DrillingStartDate
+Quality_plus$DrillingStartDate<- ymd(Quality_plus$DrillingStartDate)
+Quality_plus$DrillingEndDate<- ymd(Quality_plus$DrillingEndDate)
+Quality_plus$SampleTime<- sub("(\\d+)(\\d{2})", "\\1:\\2", Quality_plus$SampleTime) 
+
 ```
 ```{r summary of big dataset}
 summary(Quality_plus)
 ```
 ```{r finding categoricals unique to each well}
-uniquecats<- Quality_plus %>%
+wellstats<- Quality_plus %>%
   group_by(StateWellNumber) %>%
   distinct(StateWellNumber, .keep_all = T)
-summary(uniquecats)
+summary(wellstats)
 ```
 
 ```{r plotting the response, include=F}
+panel.hist = function(x, ...) {
+  + usr = par("usr") 
+  + on.exit(par(usr)) 
+  + par(usr = c(usr[1:2], 0, 1.5)) 
+  + h = hist(x, plot = FALSE) 
+  + breaks = h$breaks 
+  + nB = length(breaks) 
+  + y = h$counts 
+  + y = y/max(y) 
+  + rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...) 
+  }
+panel.lm = function(x, y, col = par("col"), bg = NA, pch = par("pch"), cex = 1, col.lm = "red", ...) { 
+  + points(x, y, pch = pch, col = col, bg = bg, cex = cex) 
+  + ok = is.finite(x) & is.finite(y) 
+  + if (any(ok)) 
+    + abline(lm(y[ok] ~ x[ok])) 
+  }
+
+pairs(~ParameterValue + WellDepth + LandSurfaceElevation, lower.panel = panel.smooth,
+      diag.panel = panel.hist, upper.panel = panel.lm, data = wellstats)
+pairs(~ParameterValue + WellDepth + LandSurfaceElevation,  data = wellstats)
 Aquifers<- levels(Quality_plus$SampledAquifer)
 
 graph<- ggplot(Quality_plus, aes(x=SampleDate, y=ParameterValue, group = SampledAquifer)) + 
