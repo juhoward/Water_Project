@@ -14,56 +14,130 @@ setwd('C:/Users/howar/Documents/Stats.2/Project 1/')
 ```
 ncol <- max(count.fields('WellMain.txt', sep = "|"))
 WellMain<- read.table('WellMain.txt', header=F, sep='|', fill=T, col.names=paste0('V', seq_len(ncol)))
-```{r loading data}
-wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
-levelsmajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMajor.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
-levelsminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMinor.txt", sep="|", header=F, stringsAsFactors = T, fill = T, quote="")
-levelscombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsCombination.txt", sep="|", header=F, stringsAsFactors = T, fill = T)
+```{r loading data, inlcude=F}
+wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+levelsmajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+levelsminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
+levelscombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsCombination.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
 ```
-```{r loading more data}
+```{r loading more data, include=F}
 levelsother<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsOtherUnassigned.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
-qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
-qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
+qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
 qualitycombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityCombination.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
 ```
-```{r more data}
-qualityotherunass<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityOtherUnassigned.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
-
-welllithology<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellLithology.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote= "")
-welltest<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellTest.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+```{r more data, include=F}
+qualityotherunass<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityOtherUnassigned.txt",
+                               sep="|", header=T, stringsAsFactors = T, fill = T)
+welllithology<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellLithology.txt", sep="|", header=T,
+                           stringsAsFactors = T, fill = T, quote= "")
+welltest<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellTest.txt", sep="|", header=T,
+                      stringsAsFactors = T, fill = T)
 
 ```
+```{r summary stats qualitymajor}
+attach(qualitymajor)
+filter=dplyr::filter
+majorbrackish<-filter(qualitymajor, ParameterValue>1000)
+summary(majorbrackish)
+hist(majorbrackish$ParameterValue)
+huge<- subset(qualitymajor, ParameterValue >300000)
+huge
+hist(huge$ParameterValue)
+uptoquantile3<- subset(qualitymajor, ParameterValue < 30000)
+```
+```{r plots, eval=F, include=F}
+plot(qualitymajor, x=SampleDate, y=ParameterValue)
+ggplot(data = qualitymajor, aes(x=SampleDate, y = ParameterValue, group=SampledAquifer)) +
+  geom_point() +
+  geom_line()
 
-
+ggplot(data = uptoquantile3, aes(x=SampleDate, y = ParameterValue, group=SampledAquifer)) +
+  geom_point() +
+  geom_line()
+```
 ```{r pressure, echo=FALSE}
 library(dplyr)
 library(stringr)
-WPqualityminor <-qualityminor %>%
-  select(ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate, SampleTopInterval, SampleBottomInterval) %>%
-  filter(ParameterCode == 70301, ParameterValue > 1000)
 ```
 
-#### We need to make a table of more useful data 
-```{r making useful tables, echo=F}
+#### We need to make a table of more useful data. We will ignore mostly empty columns: SampleBottomInterval, SampleTopInterval,  
+```{r combining tables}
 
 QualityMerge<- function(a,b,c,d) {
   a1<- a %>%
-    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    select(StateWellNumber, ParameterCode, County, Aquifer, SampleTime, SampledAquifer, ParameterDescription,
+         ParameterValue,SampleDate, CollectionEntity) %>%
     filter(ParameterCode == 70301, ParameterValue > 1000)
   b1<- b %>% 
-    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    select(StateWellNumber, ParameterCode, County, Aquifer, SampleTime, SampledAquifer, ParameterDescription,
+         ParameterValue,SampleDate, CollectionEntity) %>%
     filter(ParameterCode == 70301, ParameterValue > 1000)
   c1<- c %>% 
-    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    select(StateWellNumber, ParameterCode, County, Aquifer, SampleTime, SampledAquifer, ParameterDescription,
+         ParameterValue,SampleDate, CollectionEntity) %>%
     filter(ParameterCode == 70301, ParameterValue > 1000)
   d1<- d %>% 
-    select(StateWellNumber, ParameterCode, SampledAquifer, ParameterDescription, ParameterValue, SampleDate) %>%
+    select(StateWellNumber, ParameterCode, County, Aquifer, SampleTime, SampledAquifer, ParameterDescription,
+         ParameterValue,SampleDate, CollectionEntity) %>%
     filter(ParameterCode == 70301, ParameterValue > 1000)
   all<- list(a1, b1, c1, d1)
-  QualityAll<- do.call("rbind", all)
-  return(head(QualityAll))
+  QualityAll<<- do.call("rbind", all)
+  return(QualityAll)
 }
 QualityMerge(qualitycombination, qualitymajor, qualityminor, qualityotherunass)
+library(tidyverse)
+library(lubridate)
+QualityAll$SampleDate<- ymd(QualityAll$SampleDate)
+head(QualityAll)
 ```
+```{r merging water levels, echo=F, eval=F}
+  a1<- levelscombination %>%
+    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
+  b1<- levelsmajor %>% 
+    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
+  c1<- levelsminor %>% 
+    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
+  d1<- levelsother %>% 
+    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
+  all<- list(a1, b1, c1, d1)
+  assign('all', list(a1, b1, c1, d1), envir= .GlobalEnv)
+  LevelsAll<<- do.call("rbind", all)
+  assign("LevelsAll", do.call('rbind',all), envir = .GlobalEnv)
+  LevelsAll
 
+LevelsAll$MeasurementDate<- ymd(LevelsAll$MeasurementDate)
+head(LevelsAll)
+Qual_Lvl<- merge(QualityAll, LevelsAll, by = c("StateWellNumber", "MeasurementDate"), all = T)
+head(Qual_Lvl)
+```
+#### No wells are in common between Quality tables and Water Levels tables. This was unexpected.
+```{r merging QualityAll and WellMain}
+useful<- wellmain %>%
+  select(StateWellNumber, AquiferCodeDescription, LatitudeDD, LongitudeDD, WellDepth, LandSurfaceElevation,
+         DrillingStartDate, DrillingEndDate, WellType, WellUse, WaterLevelStatus, WaterQualityAvailable,
+         CurrentWaterLevelWell, CurrentWaterQualityWell)
+Quality_plus <-merge(QualityAll, useful, by = "StateWellNumber", all.x = T) 
+head(Quality_plus)
+dim(Quality_plus)
+dim(QualityAll)
+```
+```{r merging well lithology}
+usefullithology<- welllithology %>%
+  select(StateWellNumber, TopDepth, BottomDepth, LithologyDescription)
+Quality_plus<- merge(Quality_plus, usefullithology, by = "StateWellNumber", all.x = T)
+head(Quality_plus)
+```
+```{r cleaning}
+Quality_plus$SampleDate<- ymd(Quality_plus$SampleDate)
 
+```
+```{r plotting the response, include=F}
+Aquifers<- levels(Quality_plus$SampledAquifer)
+
+graph<- ggplot(Quality_plus, aes(x=SampleDate, y=ParameterValue, group = SampledAquifer)) + 
+                 geom_line(aes(color=SampledAquifer)) +
+                 geom_point(aes(color=SampledAquifer))
+graph
+
+```
