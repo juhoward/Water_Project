@@ -9,26 +9,29 @@ output: word_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-setwd('C:/Users/howar/Documents/Stats.2/Project 1/')
+```{r, include=F}
+setwd('C:/Users/howar/Documents/r__working_directory/Water_Project')
 ```
-ncol <- max(count.fields('WellMain.txt', sep = "|"))
-WellMain<- read.table('WellMain.txt', header=F, sep='|', fill=T, col.names=paste0('V', seq_len(ncol)))
+
 ```{r loading data, inlcude=F}
-wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
-levelsmajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
-levelsminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
-levelscombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsCombination.txt", sep="|", header=T, stringsAsFactors = T, fill = T)
+wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=T,
+                      stringsAsFactors = T, strip.white = T, quote="", comment.char = "", fill = T)
 ```
 ```{r loading more data, include=F}
-levelsother<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevelsOtherUnassigned.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
-qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
-qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMinor.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
-qualitycombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityCombination.txt", sep="|", header=T, stringsAsFactors = T, fill = T, quote="")
+qualitymajor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMajor.txt", sep="|",
+                          header=T,stringsAsFactors = T, strip.white = T, quote="", comment.char = "", 
+                          fill = T)
+qualityminor<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityMinor.txt", sep="|",
+                          header=T, stringsAsFactors = T, strip.white = T, quote="", comment.char = "", 
+                          fill = T)
+qualitycombination<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityCombination.txt",
+                                sep="|", header=T, stringsAsFactors = T, strip.white = T, quote="",
+                                comment.char = "", fill = T)
 ```
 ```{r more data, include=F}
 qualityotherunass<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterQualityOtherUnassigned.txt",
-                               sep="|", header=T, stringsAsFactors = T, fill = T)
+                               sep="|", header=T, stringsAsFactors = T, strip.white = T, quote="",
+                               comment.char = "", fill = T)
 welllithology<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellLithology.txt", sep="|", header=T,
                            stringsAsFactors = T, fill = T, quote= "")
 welltest<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellTest.txt", sep="|", header=T,
@@ -91,32 +94,13 @@ library(lubridate)
 QualityAll$SampleDate<- ymd(QualityAll$SampleDate)
 head(QualityAll)
 ```
-```{r merging water levels, echo=F, eval=F}
-  a1<- levelscombination %>%
-    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
-  b1<- levelsmajor %>% 
-    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
-  c1<- levelsminor %>% 
-    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
-  d1<- levelsother %>% 
-    select(StateWellNumber, LandElevation, MeasurementDate, DepthFromLSD, WaterElevation)
-  all<- list(a1, b1, c1, d1)
-  assign('all', list(a1, b1, c1, d1), envir= .GlobalEnv)
-  LevelsAll<<- do.call("rbind", all)
-  assign("LevelsAll", do.call('rbind',all), envir = .GlobalEnv)
-  LevelsAll
 
-LevelsAll$MeasurementDate<- ymd(LevelsAll$MeasurementDate)
-head(LevelsAll)
-Qual_Lvl<- merge(QualityAll, LevelsAll, by = c("StateWellNumber", "MeasurementDate"), all = T)
-head(Qual_Lvl)
-```
-#### No wells are in common between Quality tables and Water Levels tables. This was unexpected.
 ```{r merging QualityAll and WellMain}
 useful<- wellmain %>%
   select(StateWellNumber, AquiferCodeDescription, LatitudeDD, LongitudeDD, WellDepth, LandSurfaceElevation,
          DrillingStartDate, DrillingEndDate, WellType, WellUse, WaterLevelStatus, WaterQualityAvailable,
-         CurrentWaterLevelWell, CurrentWaterQualityWell)
+         CurrentWaterLevelWell, CurrentWaterQualityWell, RiverBasin, GMA, RWPA, Classification, Pump,
+         PowerType)
 Quality_plus <-merge(QualityAll, useful, by = "StateWellNumber", all.x = T) 
 head(Quality_plus)
 dim(Quality_plus)
@@ -130,8 +114,18 @@ head(Quality_plus)
 ```
 ```{r cleaning}
 Quality_plus$SampleDate<- ymd(Quality_plus$SampleDate)
-
+Quality_plus$DrillingStartDate
 ```
+```{r summary of big dataset}
+summary(Quality_plus)
+```
+```{r finding categoricals unique to each well}
+uniquecats<- Quality_plus %>%
+  group_by(StateWellNumber) %>%
+  distinct(StateWellNumber, .keep_all = T)
+summary(uniquecats)
+```
+
 ```{r plotting the response, include=F}
 Aquifers<- levels(Quality_plus$SampledAquifer)
 
