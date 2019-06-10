@@ -135,6 +135,31 @@ dim(wellstats)
 length(wellstats$StateWellNumber)
 ```
 #### We are left with 32 variables explaining 14,909 individual wells. We will proceed to plot diagnostics fo r the response, ParameterValue (TDS) and two other continuous variables: WellDepth and LandSurfaceElevation.
+```{r finding percentage of NA in each column of wellstats}
+colMeans(is.na(wellstats))
+```
+#### Columns with more than 80% NA values will not be considered in the model, but will be used for plotting to determine the strength of their relationship wih the response.
+1. DrillingEndDate
+2. WellDepth
+3. TopDepth
+4. BottomDepth
+5. DrillingStartDate
+6. LithologyDescription
+There are still enough missing values to cause problems, so we will investigate them further.
+```{r finding incomplete cases}
+#creating dataframe from columns that will be used to create the linear model
+# adding in StateWellNumber because it was used to group variables, but it won't be included in the model.
+wellstatsmodel<- wellstats %>%
+  dplyr::select(ParameterValue, LandSurfaceElevation, Aquifer, County, SampledAquifer, 
+         RiverBasin, GMA, RWPA, Classification, CollectionEntity, WellType, 
+         WellUse, Pump, PowerType, StateWellNumber)
+#creating an index of complete cases
+completeindex<- which(complete.cases(wellstatsmodel))
+# the index contains the 14648 complete cases and 15 variables from the model table
+# we will make a new table with only complete cases
+wellstatsmodel<- wellstatsmodel[completeindex,]
+dim(wellstatsmodel)
+```
 ```{r plotting the response, include=F}
 # BottomDepth would not plot, so it was removed.
 pairs(~ParameterValue + WellDepth + LandSurfaceElevation + TopDepth, data = wellstats)
@@ -163,5 +188,84 @@ pairs(~log(ParameterValue) + CollectionEntity + WellType + WellUse
       + Pump + PowerType,  main = "Log Transformed Response v. Other Variables", data = wellstats)
 ```
 #### A quadratic relationiship appears evident between the logged ParameterValue and TopDepth and is somewhat reflected inthe WellDepth plot as well.
-```{r linear model}
-model1<- lm()
+```{r linear model using table of complete cases}
+model1<- lm(log(ParameterValue)~ LandSurfaceElevation + Aquifer + County + SampledAquifer 
+            + RiverBasin + GMA + RWPA + Classification + CollectionEntity + WellType 
+            + WellUse + Pump + PowerType, data = wellstatsmodel)
+plot(model1$fitted.values, model1$residuals, xlab="Fitted Values", ylab="Residuals")
+```
+```{r model1 summary}
+summary(model1)
+```
+#### The adjusted R-squared for this model is .2844. We will create a training and test set and use an automatic selection procedure to see if this can be improved.
+```{r training and test set split}
+set.seed(1234)
+#creating an 80:20 train:test split
+sample_size <- floor(0.80 * nrow(wellstatsmodel))
+index<- sample(seq_len(nrow(wellstatsmodel)), size = sample_size)
+
+train<- wellstatsmodel[index,]
+test<- wellstatsmodel[-index,]
+```
+
+```{r creating predictor and response variables}
+
+#Predictors saved as object
+predictors<- model.matrix(~ LandSurfaceElevation + Aquifer + County + SampledAquifer + RiverBasin 
+                          + GMA + RWPA + Classification + CollectionEntity + WellType + WellUse 
+                          + Pump + PowerType, train) [,-1]
+response<- train$ParameterValue
+dim(predictors)
+dim(response)
+```
+```{r ridge selection, eval=F}
+cv.ridge <- cv.glmnet(predictors, response, alpha = 0)
+cv.ridge$lambda.min
+model.ridge <- glmnet(predictors, response, alpha = 0, lambda = cv.ridge$lambda.min)
+coef(model.ridge)
+```
+
+```{r ridge model test, eval=F}
+test.ridge <- model.matrix(~ LandSurfaceElevation + Aquifer + County + SampledAquifer + RiverBasin 
+                          + GMA + RWPA + Classification + CollectionEntity + WellType + WellUse 
+                          + Pump + PowerType, test) [,-1]
+predictions.ridge <- model.ridge %>%
+  predict(test.ridge) %>% 
+  as.vector()
+data.frame(
+  RMSE.r = RMSE(predictions.ridge, test$ParameterValue),
+  Rsquare.r = R2(predictions.ridge, test$ParameterValue))
+```
+
+```{r LASSO selection and testing, eval=F}
+cv.l <- cv.glmnet(predictors, response, alpha = 1)
+cv.l$lambda.min
+model.lasso <- glmnet(predictors, response, alpha = 1, lambda = cv.l$lambda.min)
+
+test.lasso <- model.matrix(~ LandSurfaceElevation + Aquifer + County + SampledAquifer + RiverBasin 
+                          + GMA + RWPA + Classification + CollectionEntity + WellType + WellUse 
+                          + Pump + PowerType, test)[,-1]
+predictions.lasso <- model.lasso %>%
+  predict(test.lasso) %>% 
+  as.vector()
+data.frame(
+  RMSE.l = RMSE(predictions.lasso, test$ParameterValue),
+  Rsquare.l = R2(predictions.lasso, test$ParameterValue))
+```
+```{r Elastic Net selection and testing, eval=F}
+#Caution, this sumbitch will tie up your computer 
+model.net <- train(ParameterValue ~ LandSurfaceElevation + Aquifer + County + SampledAquifer + RiverBasin 
+                          + GMA + RWPA + Classification + CollectionEntity + WellType + WellUse 
+                          + Pump + PowerType, data = train, method = "glmnet",
+                   trControl = trainControl("cv", number = 10), tuneLength = 10)
+model.net$bestTune
+  
+coef(model.net$finalModel, model.net$bestTune$lambda)
+test.net <- model.matrix(ParameterValue ~LandSurfaceElevation + Aquifer + County + SampledAquifer 
+                         + RiverBasin + GMA + RWPA + Classification + CollectionEntity + WellType 
+                         + WellUse + Pump + PowerType, test)[,-1]
+predictions.net <- model.net %>% predict(test.net)
+data.frame(
+RMSE.net = RMSE(predictions.net, test$ParameterValue),
+Rsquare.net = R2(predictions.net, test$ParameterValue))
+```
