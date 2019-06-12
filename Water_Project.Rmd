@@ -351,42 +351,43 @@ The Elastic Net method found 13 features significant. The top 3 predictors of wa
 Unfortunately, time does not permit the troubleshooting of the elastic net RMSE and Rsquared, so this model will not be selected. 
 
 ## Parameter Interpretations
-The ridge model provided the best combined R-squared and RMSE values and the top 5 predictors of water quality from this model are interpreted as follows:
+The ridge model provided the best combined R-squared and RMSE values and the predictors of water quality from this model are interpreted as follows, with the coefficients in the middle and the interpretations (interpreted as 1-exp(value)):
 
-For a 1 unit increase in:              The median total dissolved solids is expected to increase by:
+For a 1 unit increase in:              The median total dissolved solids is expected to:
 
-LatitudeDD                   1.834
-LongitudeDD                  0.752
-LandSurfaceElevation         0.996
-MeanWaterLvl                 0.996
-WellDepth                    0.998
+LatitudeDD                   1.834      increase 83.4%
+LongitudeDD                  0.752      decrease 89.3%
+LandSurfaceElevation         0.996      decrease 4%
+MeanWaterLvl                 0.996      decrease 4%
+WellDepth                    0.998      decrease 2%
 
 ### Water Sources with elevated total dissolved solids    
 
-Source:                      Median increase in total dissolved solids:
+Source:                      Change in median total dissolved solids:
 
-WellUseDomestic              0.969%
-WellUseIndustrial            0.752%
-WellUseInstitution           0.857%
-WellUseIrrigation            1.040%
-WellUsePlugged or Destroyed  1.089%
-WellUsePower                 1.303%
-WellUsePublic Supply         0.957%
-WellUseRecreation            1.658%
-WellUseUnused                0.962%
+WellUseDomestic              0.969    decrease 3.1%
+WellUseIndustrial            0.752    decrease 24.8%
+WellUseInstitution           0.857    decrease 14.3%
+WellUseIrrigation            1.040    increase 4.0%
+WellUsePlugged or Destroyed  1.089    increase 8.9%
+WellUsePower                 1.303    increase 30.3%
+WellUsePublic Supply         0.957    decrease 4.3%
+WellUseRecreation            1.658    increase 65.8%
+WellUseUnused                0.962    decrease 3.8%
 
 
 
 ## Conclusions:
 
-We identified the top 14 features that predict the median measurements of total dissolved solids in Lubbock County. The top predictor of total dissolved solids in Lubbock County is latitude. Every unit increase in latitude in Lubbock County is associated with a 1.834% increase in the median TDS value.It is important to note that increases in total dissolved solids are indicators of reduced water quality, so the predictors identified help us quantify the 14 greatest indicators of poor water quality in Lubbock County.
+We identified the top 14 features that predict the median measurements of total dissolved solids in Lubbock County. The top predictor of total dissolved solids in Lubbock County is latitude. Every unit increase in latitude in Lubbock County is associated with a 83.4% increase in the median TDS value. Each unit increase in longitude is associated with an 89.3% decrease in median TDS values. It is important to note that increases in total dissolved solids are indicators of reduced water quality. Residents of south western Lubbock County can expect much worse water than in north eastern Lubbock county, if they drill their own water well.
 
-With each unit increase in latitude, total dissolvied solids increases 1.834%. Residents of northern Lubbock County can expect poorer water quality, unless they draw their water from a well correlated with higher quality water, such as the listed industrial water supplies. The top predictor from well usage categories were wells used for power sources, which on average increased the median total dissolved solids measurements by 1.303%. 
+Residents of Lubbock County can get better water quality, if they draw their water from a well correlated with higher quality water. Industrial wells are associated with a 24.8% decrease in TDS, while public water wells are associated with a 4.3% decrease in median TDS values. The worst water quality is obtained from wells used for recreation, (possibly to supply swimming pools), with a 65.8% increase in median TDS and wells used for power, with a 30.3% increase in median TDS. 
+
 
 #### Important Relationships:
-1.	As latitude increases, TDS, decreases (the aforementioned north-south degredation in water quality exists on the county level)
+1.	As latitude increases, TDS, decreases (the aforementioned north-south degredation in water quality exists      on the county level)
 2.	As longitude increases, TDS decreases (an east-west degredation in water quality also exists.)
-3.	Serial corrleation is evident. Since 1940, TDS values trend upward. The water quality of these wells is decreasing.
+3.	Serial corrleation is evident. Since 1940, TDS values trend upward. The water quality of these wells is        decreasing with time.
 4.	As mean water levels decrease, so does water quality as measured by TDS.
 
 
