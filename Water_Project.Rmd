@@ -1,23 +1,23 @@
 ---
-title: "Water_Project"
-author: "Justin Howard"
+title: "An Analysis of Water Quality in the Ogallala Aquifer"
+author: "Justin Howard, Gavin Hudgeons, Eric Balke"
 date: "June 6, 2019"
 output: word_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir ='C:/Users/howar/Documents/r__working_directory/Water_Project')
 ```
 
-```{r, include=F}
+```{r, include=F, warning=F}
 library(tidyverse)
 library(stringr)
 library(dplyr)
 library(lubridate)
-setwd('C:/Users/howar/Documents/r__working_directory/Water_Project')
 ```
 
-```{r well descriptions, inlcude=F}
+```{r well descriptions table, include=F}
 wellmain<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WellMain.txt", sep="|", header=T,
                       stringsAsFactors = T, strip.white = T, quote="", comment.char = "", fill = T)
 ```
@@ -38,9 +38,24 @@ levelscombo<- read.table("C:/Users/howar/Documents/Stats.2/Project 1/WaterLevels
                           header=T, stringsAsFactors = T, strip.white = T, quote="", comment.char = "", 
                           fill = T)
 ```
+## Introduction
+The Ogallala Aquifer underlies approximately 175,000 square miles and provides water for commercial, residential and agricultural customers across the High Plains. It is the primary water source for portions of Texas, New Mexico, Oklahoma, Kansas, Nebraska, Colorado, Wyoming and parts of South Dakota. According the a US Geological Survey report issued on June 16, 2017, it is also in decline.
 
-#### We are choosing to limit the scope of this analysis to the Ogallala Aquifer, on wells located in Lubbock County, located in the Panhandle region of Texas. This aquifer was picked because its level of recharge is very slow, limiting the effect of rainfall on the analysis. Our data comes from the Texas Groundwater Conservation Board.
-```{r isolating data on the Ogallala Aquifer on wells in Lubbock County}
+This project constsists of a linear regression analysis of water quality (total dissolved solids (mg/L)) and a two-way analysis of variance of water level (ft) trends in the Panhandle Region of Texas, from 1925 to 2016. We hope to identify linear trends in water quality, with the goal of identifying factors that will best predict water quality in the coming years.
+
+## Data Description
+Our data comes from the Texas Groundwater database: http://www.twdb.texas.gov/groundwater/data/gwdbrpt.asp
+We obtained observational data on each well in the state, including water quality samples and water level measurements.
+
+<center>
+#### Problem 1:
+#### What factors can be used to predict water quality as measured by Total Dissolved Solids (mg/L)?
+</center>
+#### Approach:
+We are choosing to limit the scope of this analysis to the Ogallala Aquifer, on wells located in Lubbock County, located in the Panhandle region of Texas. This aquifer was picked because its level of recharge is very slow, limiting the effect of rainfall on the analysis. Lubbock County was selected because it contains a high population density for the area. 
+
+We limited the selection of observations to those with Well Depth readings, gps coordinates and added a variable to account for the mean water levels measured across all wells in Lubbock County for each year we had measurements of total dissolved solids.
+```{r isolating data on the Ogallala Aquifer on wells in Lubbock County, include=F}
 # water quality -- the qualityminor and qualityother tables had no ogallala
 ogaqualitymajor<- qualitymajor %>%
   filter(str_detect(Aquifer, "Ogallala")) %>%
@@ -55,7 +70,7 @@ ogaqualityAll<- do.call("rbind", ogaqualityAll)
 ogalevelsmajor<- levelsmajor %>%
   filter(str_detect(Aquifer, "Ogallala")) %>%
   filter(str_detect(County, "Lubbock"))
-ogalevelscombo<- levelscombination %>%
+ogalevelscombo<- levelscombo %>%
   filter(str_detect(Aquifer, "Ogallala")) %>%
   filter(str_detect(County, "Lubbock"))
 ogalevelsAll<- list(ogalevelscombo, ogalevelsmajor)
@@ -73,10 +88,20 @@ finalTDS<- final %>%
 # filtering out wells without welldepth values
 TDSDepth<- finalTDS %>%
   drop_na(WellDepth)
+
+# aggregate to get the mean TDS per year
+TDSbyyear<- aggregate(ParameterValue ~ SampleYear, finalTDS, mean)
+
+# merging TDSbyyear with TDSDepth on SampleYear
+aggTDS<- merge(TDSDepth, TDSbyyear, by = c("SampleYear"))
+
+# merging TDS table with aggreagate water levels
+TDS_Waterlvl<- merge(TDSDepth, levelsbyyear, by = "SampleYear")
+
 ```
 
-```{r plotting the response, include=F}
-
+```{r panel definition for plotting the response, include=F, warning=F}
+attach(TDS_Waterlvl)
 panel.cor <- function(x, y){
     usr <- par("usr"); on.exit(par(usr))
     par(usr = c(0, 1, 0, 1))
@@ -84,17 +109,23 @@ panel.cor <- function(x, y){
     txt <- paste0("R = ", r)
     text(0.5, 0.5, txt)
 }
-
-pairs(~ParameterValue + SampleYear + LandSurfaceElevation + LatitudeDD + LongitudeDD + WellDepth
+```
+## Exploratory Data Analysis
+```{r plotting the repsonse, echo=F, warning=F}
+pairs(~ ParameterValue + SampleYear + LandSurfaceElevation + LatitudeDD + LongitudeDD + WellDepth
       + MeanWaterLvl, 
       lower.panel = panel.cor,
-      data = TDS_Waterlvl)
+      data= TDS_Waterlvl)
 ```
 
-#### The correlations beween GPS coordinates and land elevation are high. A previous study of water quality found signficant evidence that that wells in the northern portion of the Ogallala Aquifer had overall lower TDS levels than those in the southern portion. To see if this holds true for Lubbock County as well, we will keep latitude and longitude coordinates over land elevation. LandSurfaceElevation may need to be removed from the model. 
+#### Methodology:
+Correlations were added to the plot to help determine covariance between predictors. Calculations are based on Pearson's R and high values will help determine placement in the model.
+
+#### Observations:
+The correlations beween GPS coordinates and land elevation are high. A previous study of water quality found signficant evidence that that wells in the northern portion of the Ogallala Aquifer had overall lower TDS levels than those in the southern portion. To see if this holds true for Lubbock County as well, we will keep latitude and longitude coordinates over land elevation. LandSurfaceElevation may need to be removed from the model. 
 MeanWaterlvl is highly corrleated with Year, so Year will be removed from the model, but investigated for trends over time.
 Also of note: A signficant outlier appears to to be in a sample taken in year 1980.
-```{r boxplot ParameterValue}
+```{r boxplot ParameterValue, echo=F}
 library(car)
   Boxplot(TDS_Waterlvl$ParameterValue, 
           main="Boxplot of ParameterValue",
@@ -106,39 +137,54 @@ library(car)
           ylab = "Total Dissolved Solids",
           id.method = 'y')
 ```
-#### The tranformation has improved the distance between the outliers and the mean value. These observations will be removed to judge their effect on the model.
 
-```{r removing outliers}
+#### Observations:
+The transformation has improved the distance between the outliers and the mean value. These observations will be removed to judge their effect on the model.
+
+```{r removing outliers, include=F}
 outliers<- c(215, 238, 202, 190, 189, 212, 180, 193, 204, 207)
 noOutliers<- TDS_Waterlvl[-outliers,]
+```
+```{r outliers removed, echo=F}
     Boxplot(log(noOutliers$ParameterValue), 
           main="Boxplot of log(ParameterValue)",
           ylab = "Total Dissolved Solids",
           id.method = 'y')
 ```
 
-```{r scatterplots for categoricals}
-
+#### Observations:
+Standard deviation has improved significantly, the outliers will be removed from the training data.
+```{r scatterplots for categoricals, echo=F}
 pairs(~ParameterValue + ReportingAgency + Owner + Pump + PowerType + WellUse + WellType + AnalyzedLab,
+      #lower.panel is a Pearson's R correlation 
       lower.panel = panel.cor,
-      data = TDS_Waterlvl)
+      data = noOutliers)
 ```
-#### Aquifer and Classification appear to be strongly correlated, as do SampledAquifer and Classification. WellUse will stay in the model to control for the type of well being sampled from, but Pump and PowerType will be removed due to strong corrleations with WellType and WellUse. ReportingAgency, AnalyzedLab and Owner will also stay in the model to account for agency and owner habits.
+
+#### Observations:
+Aquifer and Classification appear to be strongly correlated, as do SampledAquifer and Classification. 
+
+WellUse will stay in the model to control for the type of well being sampled from, but Pump and PowerType will be removed due to strong corrleations with WellType and WellUse. 
+
+ReportingAgency, AnalyzedLab and Owner may cause the model to be overfit given that they are not helpful in predicting water quality, but we may want to account for peculiarities in reporting statistics. 
+
 WellType will be removed as there only appears to be one type of well in the data.
 
 Before we proceed, we will look at scatterplots of a log transformed repsonse to see if outliers are dealt with.
-```{r plots of log transformed ParameterValue}
+```{r plots of log transformed ParameterValue, warning=F, echo=F}
 pairs(~log(ParameterValue) + LatitudeDD + LongitudeDD + WellDepth + MeanWaterLvl, 
       lower.panel = panel.cor,
-      main = "Log Transformed Response v. Continuous Variables",
-      data = TDS_Waterlvl)
+      main = "Log(TDS) v. Continuous Variables",
+      data = noOutliers)
 pairs(~log(ParameterValue) + ReportingAgency + Owner + WellUse + AnalyzedLab + SampleYear 
       + LatitudeDD + LongitudeDD,
       lower.panel = panel.cor,
-      main = "Log Tranformed Response v. Variables to Account For",
-      data = TDS_Waterlvl)
+      main = "Log(TDS) v. Categorical Variables",
+      data = noOutliers)
 ```
-#### The outlier still appears relevant after the log transformation, confirming the need to compare models with and without the original outliers. A small correlation exists between Owner and WellUse, but this may be insignificant. Models with and without Owner will be compared.
+
+#### Observations:
+A small correlation exists between Owner and WellUse, but this may be insignificant. Models with and without Owner will be compared.
 Strong correlations exist between SampleYear, AnalyzedLab and ReportingAgency. AnalyzedLab and ReportingAgency will be removed.
 
 ```{r linear model with outliers}
@@ -147,14 +193,22 @@ model1<- lm(log(ParameterValue)~ + LatitudeDD + LongitudeDD + Owner + WellUse + 
             + MeanWaterLvl, data = TDS_Waterlvl)
 plot(model1$fitted.values, model1$residuals, main = "Model1, Outliers Included", xlab="Fitted Values", ylab="Residuals")
 ```
+
+#### Observations:
+
+The residuals plot shows clear evidence that the leverage of the outliers is significant. This confirms the previous decision to remove the outliers from the model.
 ```{r linear model no outliers, Owners removed}
 # Outliers removed
 model2<- lm(log(ParameterValue)~ + LatitudeDD + LongitudeDD + WellUse + WellDepth
             + MeanWaterLvl, data = noOutliers)
 plot(model2$fitted.values, model2$residuals, main = "Model2, Outliers & Owners Removed", xlab="Fitted Values", ylab="Residuals")
 ```
-#### The residuals show evidence of non-constant variance. A closer investigation of the continuous variables is needed.
-```{r searching for non-constant variance}
+
+#### Observations:
+The residuals are much more visible. There is some evidence of clustering and non-constant variance, but the plot has improved significantly.
+
+A closer investigation of the continuous variables will be helpful.
+```{r searching for non-constant variance, echo=F}
 par(mfrow=c(1,2))
 plot(log(ParameterValue) ~ LatitudeDD, data = noOutliers)
 plot(log(ParameterValue) ~ LongitudeDD, data = noOutliers)
@@ -162,6 +216,7 @@ par(mfrow=c(1,2))
 plot(log(ParameterValue) ~ SampleYear, data = noOutliers)
 plot(log(ParameterValue) ~ MeanWaterLvl, data = noOutliers)
 ```
+
 #### The scatterplots indicate 4 important relationships:
 1. As latitude increases, TDS, decreases (the aforementioned north-south degredation in water quality exists on the county level)
 2. As longitude increases, TDS decreases (an east-west degredation in water quality also exists.)
@@ -170,52 +225,66 @@ plot(log(ParameterValue) ~ MeanWaterLvl, data = noOutliers)
 
 Year and MeanWaterLvl are too highly correlated. Year will be removed, because water levels are more highly corrleated with TDS levels than Year.
 
-```{r model1 summary, echo=F}
+## Preliminary Linear Model Using Custom Feature Selection
+
+```{r model1 summary, include=F}
 summary(model1)
 ```
 
-#### The adjusted R-squared for model 1 is .72. Including well owners will overfit the model and are not great predictors of water quality. They will be taken out of the model.
+#### Observations from Preliminary Model1 summary:
+The adjusted R-squared for model 1 is .72. Including well owners will overfit the model and are not great predictors of water quality. They will be taken out of the model.
 
-```{r model 2 summary, echo=F}
+```{r model 2 summary, include = F}
 summary(model2)
 ```
-#### Model 2 has a much worse R squared value (.4273). 
 
-```{r training and test set split}
+#### Observations from Preliminary Model2 summary:
+Model 2 has a much worse R squared value (.4273). This is an acceptable sacrifice as Owners are not valuable to the analysis of water quality.
+
+```{r training and test set split, include=F, echo=T}
 set.seed(1234)
 #creating an 80:20 train:test split
 sample_size <- floor(0.80 * nrow(noOutliers))
 index<- sample(seq_len(nrow(noOutliers)), size = sample_size)
 outDF<- TDS_Waterlvl[outliers,]
-outDF
 train<- noOutliers[index,]
 test<- noOutliers[-index,]
 ```
-#### Before returning the outliers to the test set, an examination revealed that 9 out of 10 outliers were sampled in the year 1980. 8 samples were from well 2326306, belonging to a the Lubbock Children's Home. 2 samples were from the Benton Estate. All samples had a variant of the same note, "Sample collected from well...not filtered or preserved." These outliers appear to be caused by a malfunction of sorts and will not be reintroduced to the model.
+
+#### Observations:
+Before returning the outliers to the test set, an examination revealed that 9 out of 10 outliers were sampled in the year 1980. 8 samples were from well 2326306, belonging to a the Lubbock Children's Home. 2 samples were from the Benton Estate. All samples had a variant of the same note, "Sample collected from well...not filtered or preserved." These outliers appear to be caused by a malfunction of sorts and will not be reintroduced to the model.
 
 For the automatic feature selection, we will put LandElevation back into the model to allow the algorithms more flexibility.
+
+## Automatic Feature Selection
 ```{r creating predictor and response variables}
 
 #Predictors saved as object
-predictors<- model.matrix(~ + LatitudeDD + LongitudeDD + WellUse +WellDepth + LandSurfaceElevation 
+predictors<- model.matrix(~ + LatitudeDD + LongitudeDD + WellUse + WellDepth + LandSurfaceElevation 
                           + MeanWaterLvl + WellType, train) [,-1]
 
-#had to remove Owners variable due to computer memory limits 
-# the matrix created with the Owners variable took 65Gb ram, which is just beyond my computer's limit. 
 response<- log(train$ParameterValue)
 dim(predictors)
 dim(response)
 ```
-```{r ridge selection, eval=F}
+
+## Ridge Selection
+```{r ridge selection, warning=F}
 library(glmnet)
 cv.ridge <- cv.glmnet(predictors, response, alpha = 0)
 cv.ridge$lambda.min
 model.ridge <- glmnet(predictors, response, alpha = 0, lambda = cv.ridge$lambda.min)
-ridge.indicators<- coef(model.ridge)
-ridge.indicators
+plot(cv.ridge)
+coef(model.ridge)
 ```
 
-```{r ridge model test, eval=F}
+#### Observations:
+The ridge method selects 14 features. The top 3 predictors of water quality were:
+1. longitude (-2.236)
+2. WellUse Recreation (.506)
+3. latitude (.606)
+
+```{r ridge model test, warning=F, eval=F}
 library(tidyverse)
 library(caret)
 test.ridge <- model.matrix(~ + LatitudeDD + LongitudeDD + WellUse +WellDepth + LandSurfaceElevation 
@@ -227,12 +296,15 @@ data.frame(
   RMSE.r = RMSE(predictions.ridge, log(test$ParameterValue)),
   Rsquare.r = R2(predictions.ridge, log(test$ParameterValue)))
 ```
-```{r ridge plot}
-```
 
+#### Observations:
+Ridge selection out-performs the custom model selection from Model2. A notable deviation is that the algorithm found LandSurfaceElevation, Latitude and Longitude as statistically significant even though they are correlated with each other.
+
+## LASSO Selection
 ```{r LASSO selection and testing, eval=F}
 cv.l <- cv.glmnet(predictors, response, alpha = 1)
 cv.l$lambda.min
+plot(cv.l)
 model.lasso <- glmnet(predictors, response, alpha = 1, lambda = cv.l$lambda.min)
 lasso.indicators<-coef(model.lasso)
 lasso.indicators
@@ -245,8 +317,13 @@ data.frame(
   RMSE.l = RMSE(predictions.lasso, test$ParameterValue),
   Rsquare.l = R2(predictions.lasso, test$ParameterValue))
 ```
+
+#### Observations:
+The LASSO method found 13 features significant. The top 3 predictors of water quality were:
+1. longitude (-3.547)
+2. latitiude (1.509)
+3. WellUse Recreation (.4523)
 ```{r Elastic Net selection and testing, eval=F}
-#Caution, this sumbitch will tie up your computer 
 model.net <- train(log(ParameterValue) ~ + LatitudeDD + LongitudeDD + WellUse +WellDepth 
                    + LandSurfaceElevation + MeanWaterLvl + WellType, 
                    data = train, 
@@ -257,10 +334,61 @@ model.net$bestTune
   
 coef(model.net$finalModel, model.net$bestTune$lambda)
 test.net <- model.matrix(log(ParameterValue) ~ + LatitudeDD + LongitudeDD + WellUse + WellDepth 
-                         + LandSurfaceElevation + MeanWaterLvl + WellType, test)[,-1]
-predictions.net <- model.net %>% 
-  predict(test.net)
-data.frame(
-RMSE.net = RMSE(predictions.net, test$ParameterValue),
-Rsquare.net = R2(predictions.net, test$ParameterValue))
+                         + LandSurfaceElevation + MeanWaterLvl + WellType, data = test)[,-1]
+plot(coef(model.net$finalModel))
+#predictions.net <- model.net %>% 
+#  predict(test.net)
+# data.frame(
+# RMSE.net = RMSE(predictions.net, test$ParameterValue),
+# Rsquare.net = R2(predictions.net, test$ParameterValue))
 ```
+
+####Observations:
+The Elastic Net method found 13 features significant. The top 3 predictors of water quality were:
+1. longitude (-3.504)
+2. latitiude (1.475)
+3. WellUse Recreation (.4526)
+Unfortunately, time does not permit the troubleshooting of the elastic net RMSE and Rsquared, so this model will not be selected. 
+
+## Parameter Interpretations
+The ridge model provided the best combined R-squared and RMSE values and the top 5 predictors of water quality from this model are interpreted as follows:
+
+For a 1 unit increase in:              The median total dissolved solids is expected to increase by:
+
+LatitudeDD                   1.834
+LongitudeDD                  0.752
+LandSurfaceElevation         0.996
+MeanWaterLvl                 0.996
+WellDepth                    0.998
+
+### Water Sources with elevated total dissolved solids    
+
+Source:                      Median increase in total dissolved solids:
+
+WellUseDomestic              0.969%
+WellUseIndustrial            0.752%
+WellUseInstitution           0.857%
+WellUseIrrigation            1.040%
+WellUsePlugged or Destroyed  1.089%
+WellUsePower                 1.303%
+WellUsePublic Supply         0.957%
+WellUseRecreation            1.658%
+WellUseUnused                0.962%
+
+
+
+## Conclusions:
+
+We identified the top 14 features that predict the median measurements of total dissolved solids in Lubbock County. The top predictor of total dissolved solids in Lubbock County is latitude. Every unit increase in latitude in Lubbock County is associated with a 1.834% increase in the median TDS value.It is important to note that increases in total dissolved solids are indicators of reduced water quality, so the predictors identified help us quantify the 14 greatest indicators of poor water quality in Lubbock County.
+
+With each unit increase in latitude, total dissolvied solids increases 1.834%. Residents of northern Lubbock County can expect poorer water quality, unless they draw their water from a well correlated with higher quality water, such as the listed industrial water supplies. The top predictor from well usage categories were wells used for power sources, which on average increased the median total dissolved solids measurements by 1.303%. 
+
+#### Important Relationships:
+1.	As latitude increases, TDS, decreases (the aforementioned north-south degredation in water quality exists on the county level)
+2.	As longitude increases, TDS decreases (an east-west degredation in water quality also exists.)
+3.	Serial corrleation is evident. Since 1940, TDS values trend upward. The water quality of these wells is decreasing.
+4.	As mean water levels decrease, so does water quality as measured by TDS.
+
+
+## Code Appendix
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
