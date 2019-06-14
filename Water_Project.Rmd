@@ -117,7 +117,7 @@ pairs(~ ParameterValue + SampleYear + LandSurfaceElevation + LatitudeDD + Longit
       lower.panel = panel.cor,
       data= TDS_Waterlvl)
 ```
-
+## Objective 1: Highly Interpretable Regression Analysis
 #### Methodology:
 Correlations were added to the plot to help determine covariance between predictors. Calculations are based on Pearson's R and high values will help determine placement in the model.
 
@@ -390,6 +390,109 @@ Residents of Lubbock County can get better water quality, if they draw their wat
 3.	Serial corrleation is evident. Since 1940, TDS values trend upward. The water quality of these wells is        decreasing with time.
 4.	As mean water levels decrease, so does water quality as measured by TDS.
 
+## Objective 2: Highly Predictive Regression Analysis
+### Regression Forest with Grid tuning
+#### Random Forest (method = 'rf')
+Type: Classification, Regression
+Tuning parameters:
+mtry (#Randomly Selected Predictors)
+```{r rf2, cache=FALSE}
+# Random forest regression with Grid tuning across other possible values of hyperparameters
+tg2 <- data.frame(mtry = seq(1, 25, by = 2))
+rf2 <- caret::train(log(ParameterValue) ~ LatitudeDD + LongitudeDD + WellUse + WellDepth + LandSurfaceElevation + MeanWaterLvl + WellType, data = train, method = "rf", tuneGrid = tg2)
+summary(rf2)
+get_best_result(rf2)
+rf2fin <- rf2$finalModel
+```
+
+Plot training results and calculate test data fit statistics
+```{r rf2_plots and testing}
+ggplot(rf2) + theme_bw() + ggtitle(wrapper("Random Forest Regression with Grid Search for finding optimal hyperparameters in caret::train method=rf", width = 60))
+
+rf2predvalues_train<-predict(rf2, train)
+plot(log(train$ParameterValue),rf2fin$residuals)
+
+plot(rf2$finalModel)
+rf2values_train <-data.frame(obs = log(train$ParameterValue), pred=rf2predvalues_train)
+defaultSummary(rf2values_train)
+
+# get stats on test set
+rf2predValues_test <- predict(rf2, test)
+rf2values_test <-data.frame(obs = log(test$ParameterValue), pred=rf2predValues_test)
+defaultSummary(rf2values_test)
+```
+
+### Tree Models from Genetic Algorithms
+#### Tree Models from Genetic Algorithms (method = 'evtree')
+For classification and regression using package evtree with tuning parameters:
+Complexity Parameter (alpha, numeric)
+```{r evtree, cache=FALSE}
+cctrl1 = trainControl(method="repeatedcv", number=5, repeats=3)
+tune_grid_evtree <- expand.grid(alpha = seq(0.2, 0.45, by = 0.05))
+evtree <- train(log(ParameterValue) ~ LatitudeDD + LongitudeDD + WellUse + WellDepth + LandSurfaceElevation + MeanWaterLvl + WellType, 
+                      data = train, 
+                      method = "evtree", 
+                      trControl = cctrl1, 
+                      tuneGrid = tune_grid_evtree)
+
+evtree
+summary(evtree)
+get_best_result(evtree)
+evtreefin <- evtree$finalModel
+```
+
+Plot training results and calculate test data fit statistics
+```{r evtree plots and testing}
+ggplot(evtree) + theme_bw() + ggtitle(wrapper("Tree model with Genetic Algorithms with Grid Search for finding optimal hyperparameters in caret::train method=evTree", width = 60))
+
+evtreepredvalues_train<-predict(evtree, train)
+plot(log(train$ParameterValue),evtreefin$residuals)
+plot(evtreefin)
+
+evtreevalues_train <-data.frame(obs = log(train$ParameterValue), pred=evtreepredvalues_train)
+defaultSummary(evtreevalues_train)
+
+# get stats on test set
+evtreepredValues_test <- predict(evtree, test)
+evtreevalues_test <-data.frame(obs = log(test$ParameterValue), pred=evtreepredValues_test)
+defaultSummary(evtreevalues_test)
+```
+
+### Try stepwise regression with AIC on selected variables training dataset
+#### Generalized Linear Model with Stepwise Feature Selection (method = 'glmStepAIC')
+Type: Regression, Classification
+No tuning parameters for this model
+
+```{r EB_SW_AIC, cache=FALSE}
+# train model
+step_lm <- caret::train(log(ParameterValue) ~ LatitudeDD + LongitudeDD + WellUse + WellDepth + LandSurfaceElevation + MeanWaterLvl + WellType, 
+                        data = train, 
+                        method = "lmStepAIC", 
+                        trControl = cctrl1, 
+                        trace = FALSE)
+
+summary(step_lm)
+get_best_result(step_lm)
+step_lm_fin <- step_lm$finalModel
+step_lm_fin
+```
+
+Plot training results and calculate test data fit statistics
+```{r SW AIC plots and testing}
+step_lmres<-resid(step_lm)
+step_lmpredvalues_train<-predict(step_lm, train)
+plot(log(train$ParameterValue),step_lm_fin$residuals)
+abline(0,0)
+plot(step_lm_fin$fitted.values,step_lm_fin$residuals)
+
+step_lmvalues_train <-data.frame(obs = log(train$ParameterValue), pred=step_lmpredvalues_train)
+defaultSummary(step_lmvalues_train)
+
+# get stats on test set
+step_lmpredValues_test <- predict(step_lm, test)
+step_lmvalues_test <-data.frame(obs = log(test$ParameterValue), pred=step_lmpredValues_test)
+defaultSummary(step_lmvalues_test)
+```
 
 ## Code Appendix
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
